@@ -78,11 +78,11 @@ Shader "Custom/Brush_URP_WithTexture"
                 // テクスチャが白黒のマスク画像（ディテール用のグレースケール）の場合、
                 // tex.rgb を _Color.rgb に掛けることで、テクスチャの質感を残したまま自由に着色できます
                 half4 col;
-                // col.rgb = _Color.rgb;
-                // col.a = _Color.a * finalAlpha;
-                // ★【重要】RGBに対して、あらかじめアルファ値を掛け算（乗算）して出力する
-                col.rgb = _Color.rgb * finalAlpha; 
-                col.a = finalAlpha; // アルファはそのまま
+                col.rgb = _Color.rgb;
+                col.a = _Color.a * finalAlpha;
+                // // ★【重要】RGBに対して、あらかじめアルファ値を掛け算（乗算）して出力する
+                // col.rgb = _Color.rgb * finalAlpha; 
+                // col.a = finalAlpha; // アルファはそのまま
 
                 return col;
             }
