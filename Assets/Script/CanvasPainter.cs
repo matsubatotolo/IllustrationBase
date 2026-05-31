@@ -2,17 +2,23 @@ using Unity.VisualScripting;
 using UnityEngine;
 // ⚠️ 筆圧取得のために新インプットシステムを使用します。
 // Unityの独自Input設定（Input Systemパッケージ）が有効であることを確認してください。
-using UnityEngine.InputSystem; 
+using UnityEngine.InputSystem;
 
 public class CanvasPainter : MonoBehaviour
 {
-    public DrawingCanvas canvas;
+    public enum ToolType
+    {
+        Brush = 0,
+        Eraser = 1,
+        // ここに他のツールも追加可能（例: スタンプ、グラデーションなど）
+    }
 
     // ★レイヤーマネージャーへの参照を追加します（インスペクターでセットするか、Findする）
     public LayerManager layerManager;
 
     public Material brushMaterial;      // URP_Simple（アプローチA）のシェーダーをセットしたマテリアル
-    
+    public Material eraserMaterial;
+
     [Header("Brush Settings")]
     public float maxBrushSize = 50f;    // 筆圧が最大のときのブラシの直径（ピクセル）
     public float minSizePercent = 0.1f; // 筆圧がゼロに近いときの最小サイズ比率（0.1 = 最大の10%の太さ）
@@ -28,6 +34,8 @@ public class CanvasPainter : MonoBehaviour
     // ★前回の状態を記憶するための変数
     private Vector2? lastPixelCoords = null;
     private float lastPressure = 1.0f;
+
+    private ToolType toolType = ToolType.Brush;
 
     void Start()
     {
@@ -55,32 +63,32 @@ public class CanvasPainter : MonoBehaviour
             // ペンデバイス（Wacom等）が接続されていれば、そこからリアルタイムな筆圧（0.0 〜 1.0）を取得
             //if (Pen.current != null)
             //{
-                currentPressure = Pen.current.pressure.ReadValue();
+            currentPressure = Pen.current.pressure.ReadValue();
             //}
 
-            //// ★【変更点①】LayerManager から「現在選択されているレイヤーのテクスチャ」を毎フレーム取得する
-            //RenderTexture targetLayer = layerManager.GetActiveLayerTexture();
-            //if (targetLayer == null) return;
+            // ★【変更点①】LayerManager から「現在選択されているレイヤーのテクスチャ」を毎フレーム取得する
+            RenderTexture targetLayer = layerManager.GetActiveLayerTexture();
+            if (targetLayer == null) return;
 
             // 筆圧を適用して描画を実行！
             //PaintAtPositionWithPressure(pixelCoords, pressure);
             // ★描き始め（最初の1点目）か、2点目以降（線を描いている最中）かで処理を分ける
             if (lastPixelCoords == null)
             {
-                // 最初の一歩はそのまま描画
-                PaintAtPositionWithPressure(currentPixelCoords, currentPressure);
-                //// ★【変更点②】引数に targetLayer を追加
-                //PaintAtPositionWithPressure(targetLayer, currentPixelCoords, currentPressure);
+                //// 最初の一歩はそのまま描画
+                //PaintAtPositionWithPressure(currentPixelCoords, currentPressure);
+                // ★【変更点②】引数に targetLayer を追加
+                PaintAtPositionWithPressure(targetLayer, currentPixelCoords, currentPressure);
             }
             else
             {
-                // 2手目以降は、前回の位置からの隙間を埋める（補間描画）
-                PaintLineInterpolated(lastPixelCoords.Value, currentPixelCoords, lastPressure, currentPressure);
-                //// ★【変更点③】引数に targetLayer を追加
-                //PaintLineInterpolated(targetLayer, lastPixelCoords.Value, currentPixelCoords, lastPressure, currentPressure);
+                //// 2手目以降は、前回の位置からの隙間を埋める（補間描画）
+                //PaintLineInterpolated(lastPixelCoords.Value, currentPixelCoords, lastPressure, currentPressure);
+                // ★【変更点③】引数に targetLayer を追加
+                PaintLineInterpolated(targetLayer, lastPixelCoords.Value, currentPixelCoords, lastPressure, currentPressure);
             }
-            //// ★【変更点④】現在のレイヤーに描き込みが終わったので、全体の画面を再合成してRawImageに反映する
-            //layerManager.UpdateCanvasDisplay();
+            // ★【変更点④】現在のレイヤーに描き込みが終わったので、全体の画面を再合成してRawImageに反映する
+            layerManager.UpdateCanvasDisplay();
 
             // 今回の位置と筆圧を「前回のデータ」として保存
             lastPixelCoords = currentPixelCoords;
@@ -95,9 +103,9 @@ public class CanvasPainter : MonoBehaviour
     }
 
     // ★点と点の間を補間して描画する関数
-    private void PaintLineInterpolated(Vector2 start, Vector2 end, float startPressure, float endPressure)
-    //// ★【変更点⑤】第1引数に RenderTexture target を追加
-    //private void PaintLineInterpolated(RenderTexture target, Vector2 start, Vector2 end, float startPressure, float endPressure)
+    //private void PaintLineInterpolated(Vector2 start, Vector2 end, float startPressure, float endPressure)
+    // ★【変更点⑤】第1引数に RenderTexture target を追加
+    private void PaintLineInterpolated(RenderTexture target, Vector2 start, Vector2 end, float startPressure, float endPressure)
     {
         Debug.Log("CanvasPainter.PaintLineInterpolated");
 
@@ -112,16 +120,16 @@ public class CanvasPainter : MonoBehaviour
         // 描画する回数（スタンプの数）を計算
         int steps = Mathf.Max(1, Mathf.FloorToInt(distance / stepDistance));
 
-        // 描画先の設定を一括で行う（ループの外に出すことで高速化）
-        RenderTexture.active = /*canvasTexture*/canvas.renderTexture;
-        //// ★【変更点⑥】固定の canvasTexture ではなく、引数で受け取った target をアクティブにする
-        //RenderTexture active = RenderTexture.active;
-        //RenderTexture.active = target;
+        //// 描画先の設定を一括で行う（ループの外に出すことで高速化）
+        //RenderTexture.active = /*canvasTexture*/canvas.renderTexture;
+        // ★【変更点⑥】固定の canvasTexture ではなく、引数で受け取った target をアクティブにする
+        RenderTexture active = RenderTexture.active;
+        RenderTexture.active = target;
 
         GL.PushMatrix();
-        GL.LoadPixelMatrix(0, /*canvasTexture*/canvas.renderTexture.width, 0, /*canvasTexture*/canvas.renderTexture.height);
-        //// ★ここも target のサイズに合わせる
-        //GL.LoadPixelMatrix(0, target.width, 0, target.height);
+        //GL.LoadPixelMatrix(0, /*canvasTexture*/canvas.renderTexture.width, 0, /*canvasTexture*/canvas.renderTexture.height);
+        // ★ここも target のサイズに合わせる
+        GL.LoadPixelMatrix(0, target.width, 0, target.height);
 
         // 隙間を Lerp（線形補間）しながら連続で描画
         for (int i = 1; i <= steps; i++)
@@ -137,14 +145,21 @@ public class CanvasPainter : MonoBehaviour
             float opacity = maxOpacity * interpolatedPressure;
 
             // シェーダーに透明度をセット
-            brushMaterial.SetFloat("_Opacity", opacity);
+            if (toolType == ToolType.Brush)
+                brushMaterial.SetFloat("_Opacity", opacity);
+            else // if(toolType == ToolType.Eraser)
+                eraserMaterial.SetFloat("_Opacity", opacity);
 
             // 行列を作ってメッシュを描画
             Vector3 pos = new Vector3(interpolatedPos.x, interpolatedPos.y, 0);
             Vector3 scale = new Vector3(size, size, 1);
             Matrix4x4 matrix = Matrix4x4.TRS(pos, Quaternion.identity, scale);
 
-            brushMaterial.SetPass(0);
+            if (toolType == ToolType.Brush)
+                brushMaterial.SetPass(0);
+            else // if(toolType == ToolType.Eraser)
+                eraserMaterial.SetPass(0);
+
             Graphics.DrawMeshNow(quadMesh, matrix);
         }
 
@@ -153,14 +168,14 @@ public class CanvasPainter : MonoBehaviour
         RenderTexture.active = null;
     }
 
-    public void PaintAtPositionWithPressure(Vector2 pixelCoords, float pressure)
-    //// ★【変更点⑦】第1引数に RenderTexture target を追加
-    //public void PaintAtPositionWithPressure(RenderTexture target, Vector2 pixelCoords, float pressure)
+    //public void PaintAtPositionWithPressure(Vector2 pixelCoords, float pressure)
+    // ★【変更点⑦】第1引数に RenderTexture target を追加
+    public void PaintAtPositionWithPressure(RenderTexture target, Vector2 pixelCoords, float pressure)
     {
         Debug.Log("CanvasPainter.PaintAtPositionWithPressure");
 
-        if (canvas.renderTexture == null || brushMaterial == null) return;
-        //if (target == null || brushMaterial == null) return;
+        //if (canvas.renderTexture == null || brushMaterial == null) return;
+        if (target == null || brushMaterial == null || eraserMaterial == null) return;
 
         // 1. 筆圧に応じてサイズと不透明度を計算
         // 筆圧が弱くても、完全に消えないように最小サイズ（minSizePercent）を設定
@@ -168,19 +183,22 @@ public class CanvasPainter : MonoBehaviour
         float currentOpacity = maxOpacity * pressure;
 
         // 2. マテリアル（シェーダー）に今回の不透明度をリアルタイムに送る
-        brushMaterial.SetFloat("_Opacity", currentOpacity);
+        if (toolType == ToolType.Brush)
+            brushMaterial.SetFloat("_Opacity", currentOpacity);
+        else // if(toolType == ToolType.Eraser)
+            eraserMaterial.SetFloat("_Opacity", currentOpacity);
 
         // 3. 描画先（キャンバス）をアクティブにする
-        RenderTexture.active = canvas.renderTexture;
-        //// ★【変更点⑧】引数で受け取った target をアクティブにする
-        //RenderTexture active = RenderTexture.active;
-        //RenderTexture.active = target;
+        //RenderTexture.active = canvas.renderTexture;
+        // ★【変更点⑧】引数で受け取った target をアクティブにする
+        RenderTexture active = RenderTexture.active;
+        RenderTexture.active = target;
 
         // 4. 2D描画用の正投影（Ortho）マトリクスを設定（ピクセル単位で指定可能にする）
         GL.PushMatrix();
 
-        GL.LoadPixelMatrix(0,canvas.renderTexture.width, 0, canvas.renderTexture.height);
-        //GL.LoadPixelMatrix(0, target.width, 0, target.height);
+        //GL.LoadPixelMatrix(0,canvas.renderTexture.width, 0, canvas.renderTexture.height);
+        GL.LoadPixelMatrix(0, target.width, 0, target.height);
 
         // 5. ペン位置（中心）に、筆圧計算後のサイズ（currentSize）でリサイズした行列を作成
         Vector3 pos = new Vector3(pixelCoords.x, pixelCoords.y, 0);
@@ -188,7 +206,11 @@ public class CanvasPainter : MonoBehaviour
         Matrix4x4 matrix = Matrix4x4.TRS(pos, Quaternion.identity, scale);
 
         // 6. マテリアルを適用してメッシュをその場所に描画
-        brushMaterial.SetPass(0);
+        if (toolType == ToolType.Brush)
+            brushMaterial.SetPass(0);
+        else // if(toolType == ToolType.Eraser)
+            eraserMaterial.SetPass(0);
+
         Graphics.DrawMeshNow(quadMesh, matrix);
 
         GL.PopMatrix();
@@ -202,9 +224,9 @@ public class CanvasPainter : MonoBehaviour
         float xNorm = screenPos.x / Screen.width;
         float yNorm = screenPos.y / Screen.height;
 
-        return new Vector2(xNorm * canvas.renderTexture.width, yNorm * canvas.renderTexture.height);
-        //var target = layerManager.GetActiveLayerTexture();
-        //return new Vector2(xNorm * target.width, yNorm * target.height);
+        //return new Vector2(xNorm * canvas.renderTexture.width, yNorm * canvas.renderTexture.height);
+        var target = layerManager.GetActiveLayerTexture();
+        return new Vector2(xNorm * target.width, yNorm * target.height);
         
     }
 
@@ -226,5 +248,10 @@ public class CanvasPainter : MonoBehaviour
         };
         mesh.triangles = new int[] { 0, 2, 1, 1, 2, 3 };
         return mesh;
+    }
+
+    public void SetToolType(int type)
+    {
+        toolType = (ToolType)type;
     }
 }

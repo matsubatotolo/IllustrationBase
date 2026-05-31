@@ -1,12 +1,15 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using static PaintLayer;
 
 public class LayerManager : MonoBehaviour
 {
     public RectTransform canvasRect;
     public Material compositeMaterial; // ★後述のレイヤー合成用マテリアル
     public RawImage canvasDisplay;     // 画面に最終結果を表示するUI
+    [SerializeField]
+    private LayerListPanel layerListPanel;
 
     private List<PaintLayer> layers = new List<PaintLayer>();
     private int activeLayerIndex = 0;
@@ -23,19 +26,24 @@ public class LayerManager : MonoBehaviour
         canvasDisplay.texture = finalCombinedTexture;
 
         // 初期レイヤーを2つ作成（例: 背景レイヤー、線画レイヤー）
-        AddNewLayer("Background");
-        AddNewLayer("LineArt");
+        AddNewLayer("Background", LayerType.Background);
+        AddNewLayer("LineArt", LayerType.Normal);
 
         activeLayerIndex = 1; // 最初は上の「LineArt」を選択状態にする
 
         UpdateCanvasDisplay();
     }
-
-    public void AddNewLayer(string name)
+    public void AddNewLayer(string name, LayerType layerType)
     {
         int w = (int)canvasRect.rect.size.x;
         int h = (int)canvasRect.rect.size.y;
-        layers.Add(new PaintLayer(name, w, h));
+        layers.Add(new PaintLayer(name, w, h, layerType));
+        layerListPanel.AddLayerUnit(name, layerType);
+    }
+
+    public void AddNewLayer()
+    {
+        AddNewLayer("New Layer", LayerType.Normal);
     }
 
     // ★重要: CanvasPainterからはこの関数経由で「現在のレイヤー」に対して描画させる
@@ -85,9 +93,21 @@ public class LayerManager : MonoBehaviour
         }
     }
 
+    public void SetLayerVisible(int index, bool visible)
+    {
+        if (index < 0 || index >= layers.Count) return;
+        layers[index].isVisible = visible;
+        UpdateCanvasDisplay();
+    }
+
     private void OnDestroy()
     {
         foreach (var layer in layers) layer.Release();
         if (finalCombinedTexture != null) finalCombinedTexture.Release();
+    }
+
+    public RenderTexture GetFinalCombinedTexture()
+    {
+        return /*finalCombinedTexture*/layers[1].texture; 
     }
 }

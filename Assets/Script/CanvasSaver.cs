@@ -4,26 +4,32 @@ using System.IO; // ファイル書き込みに使用します
 public class CanvasSaver : MonoBehaviour
 {
     //public RenderTexture canvasTexture; // 保存したいレンダーテクスチャ
-    public DrawingCanvas canvas;
+    //public DrawingCanvas canvas;
+    [SerializeField]
+    private LayerManager layerManager;
+    private RenderTexture finalCombinedTexture = null;
 
     // UIのボタンなどからこの関数を呼び出します
     public void SaveCanvasAsPNG()
     {
-        if (canvas.renderTexture == null)
+        if (finalCombinedTexture == null)
+            finalCombinedTexture = layerManager.GetFinalCombinedTexture();
+
+        if (finalCombinedTexture == null)
         {
             Debug.LogError("保存するRenderTextureが設定されていません。");
             return;
         }
 
         // 1. RenderTextureと同じサイズ、フォーマットの Texture2D を作成
-        Texture2D texture2D = new Texture2D(canvas.renderTexture.width, canvas.renderTexture.height, TextureFormat.RGBA32, false);
+        Texture2D texture2D = new Texture2D(finalCombinedTexture.width, finalCombinedTexture.height, TextureFormat.RGBA32, false);
 
         // 2. 読み取り元としてRenderTextureをアクティブにする
-        RenderTexture.active = canvas.renderTexture;
+        RenderTexture.active = finalCombinedTexture;
 
         // 3. RenderTextureのピクセル情報をTexture2Dにコピー
         // (0, 0)からテクスチャ全画面分を読み込みます
-        texture2D.ReadPixels(new Rect(0, 0, canvas.renderTexture.width, canvas.renderTexture.height), 0, 0);
+        texture2D.ReadPixels(new Rect(0, 0, finalCombinedTexture.width, finalCombinedTexture.height), 0, 0);
         texture2D.Apply(); // 変更を確定
 
         // 後片付け（アクティブを解除）

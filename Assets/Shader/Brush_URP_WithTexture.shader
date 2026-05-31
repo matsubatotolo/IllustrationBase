@@ -18,7 +18,7 @@ Shader "Custom/Brush_URP_WithTexture"
             Name "BrushWithTex"
             Tags { "LightMode"="UniversalForward" }
 
-            Blend SrcAlpha OneMinusSrcAlpha
+            Blend SrcAlpha OneMinusSrcAlpha, One One
             ZWrite Off
             Cull Off
 
@@ -80,9 +80,9 @@ Shader "Custom/Brush_URP_WithTexture"
                 half4 col;
                 col.rgb = _Color.rgb;
                 col.a = _Color.a * finalAlpha;
-                // // ★【重要】RGBに対して、あらかじめアルファ値を掛け算（乗算）して出力する
-                // col.rgb = _Color.rgb * finalAlpha; 
-                // col.a = finalAlpha; // アルファはそのまま
+                //// ★【重要】RGBに対して、あらかじめアルファ値を掛け算（乗算）して出力する
+                //col.rgb = _Color.rgb * finalAlpha; 
+                //col.a = finalAlpha; // アルファはそのまま
 
                 return col;
             }
