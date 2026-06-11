@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -30,6 +31,7 @@ public class LayerManager : MonoBehaviour
         AddNewLayer("LineArt", LayerType.Normal);
 
         activeLayerIndex = 1; // 最初は上の「LineArt」を選択状態にする
+        layerListPanel.SetUnitBackgroundColor(1);
 
         UpdateCanvasDisplay();
     }
@@ -109,5 +111,15 @@ public class LayerManager : MonoBehaviour
     public RenderTexture GetFinalCombinedTexture()
     {
         return /*finalCombinedTexture*/layers[1].texture; 
+    }
+
+    public void SetActiveLayerIndex(int index)
+    {
+        activeLayerIndex = index;        
+    }
+
+    public void SetUnitBackgroundColor(int index)
+    {
+        layerListPanel.SetUnitBackgroundColor(index);
     }
 }

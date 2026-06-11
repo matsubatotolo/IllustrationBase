@@ -6452,7 +6452,7 @@ MonoBehaviour:
   maxBrushSize: 50
   minSizePercent: 0.1
   maxOpacity: 1
-  brushSpacing: 0.1
+  brushSpacing: 0.01
 --- !u!114 &1919667978
 MonoBehaviour:
   m_ObjectHideFlags: 0

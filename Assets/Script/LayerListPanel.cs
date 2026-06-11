@@ -23,12 +23,15 @@ public class LayerListPanel : MonoBehaviour
         LayerUIUnit layerUIUnit = unit.GetComponent<LayerUIUnit>();
         if (layerUIUnit != null)
         {
-            layerUIUnit.SetLayerIndex(GetLayerIndex());
+            var layerIndex = GetLayerIndex();
+            layerUIUnit.SetLayerIndex(layerIndex);
             layerUIUnit.SetLayerName(layerName);
             layerUIUnit.SetLayerVisibleFlag(true);
             layerUIUnit.Initialize(layerManager);
+            layerManager.SetActiveLayerIndex(layerIndex);
+            unitInstances.Add(unit);
+            SetUnitBackgroundColor(layerIndex);
         }
-        unitInstances.Add(unit);
         
         return unit;
     }
@@ -64,5 +67,15 @@ public class LayerListPanel : MonoBehaviour
                 newIndex = layerUIUnit.layerIndex;
         }
         return newIndex + 1;
+    }
+
+    public void SetUnitBackgroundColor(int index)
+    {
+        foreach (var instance in unitInstances)
+        {
+            var layerUIUnit = instance.GetComponent<LayerUIUnit>();            
+            layerUIUnit.SetBackgroundColor(index);
+           
+        }
     }
 }
